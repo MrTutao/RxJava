@@ -51,35 +51,35 @@ public class FlowableWithLatestFromTest {
         PublishProcessor<Integer> source = PublishProcessor.create();
         PublishProcessor<Integer> other = PublishProcessor.create();
 
-        Subscriber<Integer> o = TestHelper.mockSubscriber();
-        InOrder inOrder = inOrder(o);
+        Subscriber<Integer> subscriber = TestHelper.mockSubscriber();
+        InOrder inOrder = inOrder(subscriber);
 
         Flowable<Integer> result = source.withLatestFrom(other, COMBINER);
 
-        result.subscribe(o);
+        result.subscribe(subscriber);
 
         source.onNext(1);
-        inOrder.verify(o, never()).onNext(anyInt());
+        inOrder.verify(subscriber, never()).onNext(anyInt());
 
         other.onNext(1);
-        inOrder.verify(o, never()).onNext(anyInt());
+        inOrder.verify(subscriber, never()).onNext(anyInt());
 
         source.onNext(2);
-        inOrder.verify(o).onNext((2 << 8) + 1);
+        inOrder.verify(subscriber).onNext((2 << 8) + 1);
 
         other.onNext(2);
-        inOrder.verify(o, never()).onNext(anyInt());
+        inOrder.verify(subscriber, never()).onNext(anyInt());
 
         other.onComplete();
-        inOrder.verify(o, never()).onComplete();
+        inOrder.verify(subscriber, never()).onComplete();
 
         source.onNext(3);
-        inOrder.verify(o).onNext((3 << 8) + 2);
+        inOrder.verify(subscriber).onNext((3 << 8) + 2);
 
         source.onComplete();
-        inOrder.verify(o).onComplete();
+        inOrder.verify(subscriber).onComplete();
 
-        verify(o, never()).onError(any(Throwable.class));
+        verify(subscriber, never()).onError(any(Throwable.class));
     }
 
     @Test
@@ -133,7 +133,6 @@ public class FlowableWithLatestFromTest {
         assertFalse(source.hasSubscribers());
         assertFalse(other.hasSubscribers());
     }
-
 
     @Test
     public void testUnsubscription() {
@@ -189,6 +188,7 @@ public class FlowableWithLatestFromTest {
         assertFalse(source.hasSubscribers());
         assertFalse(other.hasSubscribers());
     }
+
     @Test
     public void testOtherThrows() {
         PublishProcessor<Integer> source = PublishProcessor.create();
@@ -313,36 +313,36 @@ public class FlowableWithLatestFromTest {
 
     @Test
     public void manySources() {
-        PublishProcessor<String> ps1 = PublishProcessor.create();
-        PublishProcessor<String> ps2 = PublishProcessor.create();
-        PublishProcessor<String> ps3 = PublishProcessor.create();
+        PublishProcessor<String> pp1 = PublishProcessor.create();
+        PublishProcessor<String> pp2 = PublishProcessor.create();
+        PublishProcessor<String> pp3 = PublishProcessor.create();
         PublishProcessor<String> main = PublishProcessor.create();
 
         TestSubscriber<String> ts = new TestSubscriber<String>();
 
-        main.withLatestFrom(new Flowable[] { ps1, ps2, ps3 }, toArray)
+        main.withLatestFrom(new Flowable[] { pp1, pp2, pp3 }, toArray)
         .subscribe(ts);
 
         main.onNext("1");
         ts.assertNoValues();
-        ps1.onNext("a");
+        pp1.onNext("a");
         ts.assertNoValues();
-        ps2.onNext("A");
+        pp2.onNext("A");
         ts.assertNoValues();
-        ps3.onNext("=");
+        pp3.onNext("=");
         ts.assertNoValues();
 
         main.onNext("2");
         ts.assertValues("[2, a, A, =]");
 
-        ps2.onNext("B");
+        pp2.onNext("B");
 
         ts.assertValues("[2, a, A, =]");
 
-        ps3.onComplete();
+        pp3.onComplete();
         ts.assertValues("[2, a, A, =]");
 
-        ps1.onNext("b");
+        pp1.onNext("b");
 
         main.onNext("3");
 
@@ -353,43 +353,43 @@ public class FlowableWithLatestFromTest {
         ts.assertNoErrors();
         ts.assertComplete();
 
-        assertFalse("ps1 has subscribers?", ps1.hasSubscribers());
-        assertFalse("ps2 has subscribers?", ps2.hasSubscribers());
-        assertFalse("ps3 has subscribers?", ps3.hasSubscribers());
+        assertFalse("ps1 has subscribers?", pp1.hasSubscribers());
+        assertFalse("ps2 has subscribers?", pp2.hasSubscribers());
+        assertFalse("ps3 has subscribers?", pp3.hasSubscribers());
     }
 
     @Test
     public void manySourcesIterable() {
-        PublishProcessor<String> ps1 = PublishProcessor.create();
-        PublishProcessor<String> ps2 = PublishProcessor.create();
-        PublishProcessor<String> ps3 = PublishProcessor.create();
+        PublishProcessor<String> pp1 = PublishProcessor.create();
+        PublishProcessor<String> pp2 = PublishProcessor.create();
+        PublishProcessor<String> pp3 = PublishProcessor.create();
         PublishProcessor<String> main = PublishProcessor.create();
 
         TestSubscriber<String> ts = new TestSubscriber<String>();
 
-        main.withLatestFrom(Arrays.<Flowable<?>>asList(ps1, ps2, ps3), toArray)
+        main.withLatestFrom(Arrays.<Flowable<?>>asList(pp1, pp2, pp3), toArray)
         .subscribe(ts);
 
         main.onNext("1");
         ts.assertNoValues();
-        ps1.onNext("a");
+        pp1.onNext("a");
         ts.assertNoValues();
-        ps2.onNext("A");
+        pp2.onNext("A");
         ts.assertNoValues();
-        ps3.onNext("=");
+        pp3.onNext("=");
         ts.assertNoValues();
 
         main.onNext("2");
         ts.assertValues("[2, a, A, =]");
 
-        ps2.onNext("B");
+        pp2.onNext("B");
 
         ts.assertValues("[2, a, A, =]");
 
-        ps3.onComplete();
+        pp3.onComplete();
         ts.assertValues("[2, a, A, =]");
 
-        ps1.onNext("b");
+        pp1.onNext("b");
 
         main.onNext("3");
 
@@ -400,9 +400,9 @@ public class FlowableWithLatestFromTest {
         ts.assertNoErrors();
         ts.assertComplete();
 
-        assertFalse("ps1 has subscribers?", ps1.hasSubscribers());
-        assertFalse("ps2 has subscribers?", ps2.hasSubscribers());
-        assertFalse("ps3 has subscribers?", ps3.hasSubscribers());
+        assertFalse("ps1 has subscribers?", pp1.hasSubscribers());
+        assertFalse("ps2 has subscribers?", pp2.hasSubscribers());
+        assertFalse("ps3 has subscribers?", pp3.hasSubscribers());
     }
 
     @Test
@@ -439,12 +439,12 @@ public class FlowableWithLatestFromTest {
 
     @Test
     public void backpressureNoSignal() {
-        PublishProcessor<String> ps1 = PublishProcessor.create();
-        PublishProcessor<String> ps2 = PublishProcessor.create();
+        PublishProcessor<String> pp1 = PublishProcessor.create();
+        PublishProcessor<String> pp2 = PublishProcessor.create();
 
         TestSubscriber<String> ts = new TestSubscriber<String>(0);
 
-        Flowable.range(1, 10).withLatestFrom(new Flowable<?>[] { ps1, ps2 }, toArray)
+        Flowable.range(1, 10).withLatestFrom(new Flowable<?>[] { pp1, pp2 }, toArray)
         .subscribe(ts);
 
         ts.assertNoValues();
@@ -455,24 +455,24 @@ public class FlowableWithLatestFromTest {
         ts.assertNoErrors();
         ts.assertComplete();
 
-        assertFalse("ps1 has subscribers?", ps1.hasSubscribers());
-        assertFalse("ps2 has subscribers?", ps2.hasSubscribers());
+        assertFalse("ps1 has subscribers?", pp1.hasSubscribers());
+        assertFalse("ps2 has subscribers?", pp2.hasSubscribers());
     }
 
     @Test
     public void backpressureWithSignal() {
-        PublishProcessor<String> ps1 = PublishProcessor.create();
-        PublishProcessor<String> ps2 = PublishProcessor.create();
+        PublishProcessor<String> pp1 = PublishProcessor.create();
+        PublishProcessor<String> pp2 = PublishProcessor.create();
 
         TestSubscriber<String> ts = new TestSubscriber<String>(0);
 
-        Flowable.range(1, 3).withLatestFrom(new Flowable<?>[] { ps1, ps2 }, toArray)
+        Flowable.range(1, 3).withLatestFrom(new Flowable<?>[] { pp1, pp2 }, toArray)
         .subscribe(ts);
 
         ts.assertNoValues();
 
-        ps1.onNext("1");
-        ps2.onNext("1");
+        pp1.onNext("1");
+        pp2.onNext("1");
 
         ts.request(1);
 
@@ -488,8 +488,8 @@ public class FlowableWithLatestFromTest {
         ts.assertNoErrors();
         ts.assertComplete();
 
-        assertFalse("ps1 has subscribers?", ps1.hasSubscribers());
-        assertFalse("ps2 has subscribers?", ps2.hasSubscribers());
+        assertFalse("ps1 has subscribers?", pp1.hasSubscribers());
+        assertFalse("ps2 has subscribers?", pp2.hasSubscribers());
     }
 
     @Test
@@ -641,12 +641,12 @@ public class FlowableWithLatestFromTest {
         try {
             new Flowable<Integer>() {
                 @Override
-                protected void subscribeActual(Subscriber<? super Integer> observer) {
-                    observer.onSubscribe(new BooleanSubscription());
-                    observer.onError(new TestException("First"));
-                    observer.onNext(1);
-                    observer.onError(new TestException("Second"));
-                    observer.onComplete();
+                protected void subscribeActual(Subscriber<? super Integer> subscriber) {
+                    subscriber.onSubscribe(new BooleanSubscription());
+                    subscriber.onError(new TestException("First"));
+                    subscriber.onNext(1);
+                    subscriber.onError(new TestException("Second"));
+                    subscriber.onComplete();
                 }
             }.withLatestFrom(Flowable.just(2), Flowable.just(3), new Function3<Integer, Integer, Integer, Object>() {
                 @Override
@@ -779,7 +779,7 @@ public class FlowableWithLatestFromTest {
 
     @Test
     public void otherOnSubscribeRace() {
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < TestHelper.RACE_DEFAULT_LOOPS; i++) {
             final PublishProcessor<Integer> pp0 = PublishProcessor.create();
             final PublishProcessor<Integer> pp1 = PublishProcessor.create();
             final PublishProcessor<Integer> pp2 = PublishProcessor.create();
@@ -822,7 +822,7 @@ public class FlowableWithLatestFromTest {
 
     @Test
     public void otherCompleteRace() {
-        for (int i = 0; i < 1000; i++) {
+        for (int i = 0; i < TestHelper.RACE_DEFAULT_LOOPS; i++) {
             final PublishProcessor<Integer> pp0 = PublishProcessor.create();
             final PublishProcessor<Integer> pp1 = PublishProcessor.create();
             final PublishProcessor<Integer> pp2 = PublishProcessor.create();

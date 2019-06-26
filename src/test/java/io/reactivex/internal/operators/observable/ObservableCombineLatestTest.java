@@ -483,7 +483,7 @@ public class ObservableCombineLatestTest {
 
             final CountDownLatch cdl = new CountDownLatch(1);
 
-            Observer<List<Object>> s = new DefaultObserver<List<Object>>() {
+            Observer<List<Object>> observer = new DefaultObserver<List<Object>>() {
 
                 @Override
                 public void onNext(List<Object> t) {
@@ -503,7 +503,7 @@ public class ObservableCombineLatestTest {
                 }
             };
 
-            result.subscribe(s);
+            result.subscribe(observer);
 
             cdl.await();
 
@@ -756,14 +756,14 @@ public class ObservableCombineLatestTest {
                     }
                 }).take(SIZE);
 
-        TestObserver<Long> ts = new TestObserver<Long>();
+        TestObserver<Long> to = new TestObserver<Long>();
 
         Observable.combineLatest(timer, Observable.<Integer> never(), new BiFunction<Long, Integer, Long>() {
             @Override
             public Long apply(Long t1, Integer t2) {
                 return t1;
             }
-        }).subscribe(ts);
+        }).subscribe(to);
 
         if (!latch.await(SIZE + 1000, TimeUnit.MILLISECONDS)) {
             fail("timed out");
@@ -963,7 +963,7 @@ public class ObservableCombineLatestTest {
 
     @Test
     public void onErrorRace() {
-        for (int i = 0; i < 500; i++) {
+        for (int i = 0; i < TestHelper.RACE_DEFAULT_LOOPS; i++) {
             List<Throwable> errors = TestHelper.trackPluginErrors();
             try {
                 final PublishSubject<Integer> ps1 = PublishSubject.create();
@@ -1170,7 +1170,7 @@ public class ObservableCombineLatestTest {
         final PublishSubject<Integer> ps1 = PublishSubject.create();
         final PublishSubject<Integer> ps2 = PublishSubject.create();
 
-        TestObserver<Integer> ts = new TestObserver<Integer>() {
+        TestObserver<Integer> to = new TestObserver<Integer>() {
             @Override
             public void onNext(Integer t) {
                 super.onNext(t);
@@ -1192,11 +1192,11 @@ public class ObservableCombineLatestTest {
                 return t1 + t2;
             }
         })
-        .subscribe(ts);
+        .subscribe(to);
 
         ps1.onNext(1);
         ps2.onNext(2);
-        ts.assertResult(3);
+        to.assertResult(3);
     }
 
     @Test

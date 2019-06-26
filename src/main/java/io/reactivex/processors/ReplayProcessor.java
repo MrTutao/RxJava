@@ -21,7 +21,7 @@ import java.util.concurrent.atomic.*;
 import org.reactivestreams.*;
 
 import io.reactivex.Scheduler;
-import io.reactivex.annotations.CheckReturnValue;
+import io.reactivex.annotations.*;
 import io.reactivex.internal.functions.ObjectHelper;
 import io.reactivex.internal.subscriptions.SubscriptionHelper;
 import io.reactivex.internal.util.*;
@@ -30,21 +30,101 @@ import io.reactivex.plugins.RxJavaPlugins;
 /**
  * Replays events to Subscribers.
  * <p>
- * <img width="640" height="405" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/S.ReplaySubject.png" alt="">
- *
+ * The {@code ReplayProcessor} supports the following item retainment strategies:
+ * <ul>
+ * <li>{@link #create()} and {@link #create(int)}: retains and replays all events to current and
+ * future {@code Subscriber}s.
  * <p>
- * The ReplayProcessor can be created in bounded and unbounded mode. It can be bounded by
+ * <img width="640" height="269" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/ReplayProcessor.u.png" alt="">
+ * <p>
+ * <img width="640" height="345" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/ReplayProcessor.ue.png" alt="">
+ * </li>
+ * <li>{@link #createWithSize(int)}: retains at most the given number of items and replays only these
+ * latest items to new {@code Subscriber}s.
+ * <p>
+ * <img width="640" height="332" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/ReplayProcessor.n.png" alt="">
+ * </li>
+ * <li>{@link #createWithTime(long, TimeUnit, Scheduler)}: retains items no older than the specified time
+ * and replays them to new {@code Subscriber}s (which could mean all items age out).
+ * <p>
+ * <img width="640" height="415" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/ReplayProcessor.t.png" alt="">
+ * </li>
+ * <li>{@link #createWithTimeAndSize(long, TimeUnit, Scheduler, int)}: retains no more than the given number of items
+ * which are also no older than the specified time and replays them to new {@code Subscriber}s (which could mean all items age out).
+ * <p>
+ * <img width="640" height="404" src="https://raw.github.com/wiki/ReactiveX/RxJava/images/rx-operators/ReplayProcessor.nt.png" alt="">
+ * </li>
+ * </ul>
+ * <p>
+ * The {@code ReplayProcessor} can be created in bounded and unbounded mode. It can be bounded by
  * size (maximum number of elements retained at most) and/or time (maximum age of elements replayed).
- *
- * <p>This Processor respects the backpressure behavior of its Subscribers (individually) but
- * does not coordinate their request amounts towards the upstream (because there might not be any).
- *
- * <p>Note that Subscribers receive a continuous sequence of values after they subscribed even
+ * <p>
+ * Since a {@code ReplayProcessor} is a Reactive Streams {@code Processor},
+ * {@code null}s are not allowed (<a href="https://github.com/reactive-streams/reactive-streams-jvm#2.13">Rule 2.13</a>) as
+ * parameters to {@link #onNext(Object)} and {@link #onError(Throwable)}. Such calls will result in a
+ * {@link NullPointerException} being thrown and the processor's state is not changed.
+ * <p>
+ * This {@code ReplayProcessor} respects the individual backpressure behavior of its {@code Subscriber}s but
+ * does not coordinate their request amounts towards the upstream (because there might not be any) and
+ * consumes the upstream in an unbounded manner (requesting {@code Long.MAX_VALUE}).
+ * Note that {@code Subscriber}s receive a continuous sequence of values after they subscribed even
  * if an individual item gets delayed due to backpressure.
- *
+ * Due to concurrency requirements, a size-bounded {@code ReplayProcessor} may hold strong references to more source
+ * emissions than specified.
+ * <p>
+ * When this {@code ReplayProcessor} is terminated via {@link #onError(Throwable)} or {@link #onComplete()},
+ * late {@link Subscriber}s will receive the retained/cached items first (if any) followed by the respective
+ * terminal event. If the {@code ReplayProcessor} has a time-bound, the age of the retained/cached items are still considered
+ * when replaying and thus it may result in no items being emitted before the terminal event.
+ * <p>
+ * Once an {@code Subscriber} has subscribed, it will receive items continuously from that point on. Bounds only affect how
+ * many past items a new {@code Subscriber} will receive before it catches up with the live event feed.
+ * <p>
+ * Even though {@code ReplayProcessor} implements the {@code Subscriber} interface, calling
+ * {@code onSubscribe} is not required (<a href="https://github.com/reactive-streams/reactive-streams-jvm#2.12">Rule 2.12</a>)
+ * if the processor is used as a standalone source. However, calling {@code onSubscribe}
+ * after the {@code ReplayProcessor} reached its terminal state will result in the
+ * given {@code Subscription} being canceled immediately.
+ * <p>
+ * Calling {@link #onNext(Object)}, {@link #onError(Throwable)} and {@link #onComplete()}
+ * is required to be serialized (called from the same thread or called non-overlappingly from different threads
+ * through external means of serialization). The {@link #toSerialized()} method available to all {@code FlowableProcessor}s
+ * provides such serialization and also protects against reentrance (i.e., when a downstream {@code Subscriber}
+ * consuming this processor also wants to call {@link #onNext(Object)} on this processor recursively).
+ * <p>
+ * This {@code ReplayProcessor} supports the standard state-peeking methods {@link #hasComplete()}, {@link #hasThrowable()},
+ * {@link #getThrowable()} and {@link #hasSubscribers()} as well as means to read the retained/cached items
+ * in a non-blocking and thread-safe manner via {@link #hasValue()}, {@link #getValue()},
+ * {@link #getValues()} or {@link #getValues(Object[])}.
+ * <p>
+ * Note that due to concurrency requirements, a size- and time-bounded {@code ReplayProcessor} may hold strong references to more
+ * source emissions than specified while it isn't terminated yet. Use the {@link #cleanupBuffer()} to allow
+ * such inaccessible items to be cleaned up by GC once no consumer references them anymore.
+ * <dl>
+ *  <dt><b>Backpressure:</b></dt>
+ *  <dd>This {@code ReplayProcessor} respects the individual backpressure behavior of its {@code Subscriber}s but
+ *  does not coordinate their request amounts towards the upstream (because there might not be any) and
+ *  consumes the upstream in an unbounded manner (requesting {@code Long.MAX_VALUE}).
+ *  Note that {@code Subscriber}s receive a continuous sequence of values after they subscribed even
+ *  if an individual item gets delayed due to backpressure.</dd>
+ *  <dt><b>Scheduler:</b></dt>
+ *  <dd>{@code ReplayProcessor} does not operate by default on a particular {@link io.reactivex.Scheduler} and
+ *  the {@code Subscriber}s get notified on the thread the respective {@code onXXX} methods were invoked.
+ *  Time-bound {@code ReplayProcessor}s use the given {@code Scheduler} in their {@code create} methods
+ *  as time source to timestamp of items received for the age checks.</dd>
+ *  <dt><b>Error handling:</b></dt>
+ *  <dd>When the {@link #onError(Throwable)} is called, the {@code ReplayProcessor} enters into a terminal state
+ *  and emits the same {@code Throwable} instance to the last set of {@code Subscriber}s. During this emission,
+ *  if one or more {@code Subscriber}s cancel their respective {@code Subscription}s, the
+ *  {@code Throwable} is delivered to the global error handler via
+ *  {@link io.reactivex.plugins.RxJavaPlugins#onError(Throwable)} (multiple times if multiple {@code Subscriber}s
+ *  cancel at once).
+ *  If there were no {@code Subscriber}s subscribed to this {@code ReplayProcessor} when the {@code onError()}
+ *  was called, the global error handler is not invoked.
+ *  </dd>
+ * </dl>
  * <p>
  * Example usage:
- * <p>
  * <pre> {@code
 
   ReplayProcessor<Object> processor = new ReplayProcessor<T>();
@@ -91,6 +171,7 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
      * @return the created ReplayProcessor
      */
     @CheckReturnValue
+    @NonNull
     public static <T> ReplayProcessor<T> create() {
         return new ReplayProcessor<T>(new UnboundedReplayBuffer<T>(16));
     }
@@ -105,12 +186,13 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
      * due to frequent array-copying.
      *
      * @param <T>
-     *          the type of items observed and emitted by the Subject
+     *          the type of items observed and emitted by this type of processor
      * @param capacityHint
      *          the initial buffer capacity
-     * @return the created subject
+     * @return the created processor
      */
     @CheckReturnValue
+    @NonNull
     public static <T> ReplayProcessor<T> create(int capacityHint) {
         return new ReplayProcessor<T>(new UnboundedReplayBuffer<T>(capacityHint));
     }
@@ -121,21 +203,22 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
      * In this setting, the {@code ReplayProcessor} holds at most {@code size} items in its internal buffer and
      * discards the oldest item.
      * <p>
-     * When observers subscribe to a terminated {@code ReplayProcessor}, they are guaranteed to see at most
+     * When {@code Subscriber}s subscribe to a terminated {@code ReplayProcessor}, they are guaranteed to see at most
      * {@code size} {@code onNext} events followed by a termination event.
      * <p>
-     * If an observer subscribes while the {@code ReplayProcessor} is active, it will observe all items in the
+     * If a {@code Subscriber} subscribes while the {@code ReplayProcessor} is active, it will observe all items in the
      * buffer at that point in time and each item observed afterwards, even if the buffer evicts items due to
-     * the size constraint in the mean time. In other words, once an Observer subscribes, it will receive items
+     * the size constraint in the mean time. In other words, once a {@code Subscriber} subscribes, it will receive items
      * without gaps in the sequence.
      *
      * @param <T>
-     *          the type of items observed and emitted by the Subject
+     *          the type of items observed and emitted by this type of processor
      * @param maxSize
      *          the maximum number of buffered items
-     * @return the created subject
+     * @return the created processor
      */
     @CheckReturnValue
+    @NonNull
     public static <T> ReplayProcessor<T> createWithSize(int maxSize) {
         return new ReplayProcessor<T>(new SizeBoundReplayBuffer<T>(maxSize));
     }
@@ -150,8 +233,8 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
      * of the bounded implementations without the interference of the eviction policies.
      *
      * @param <T>
-     *          the type of items observed and emitted by the Subject
-     * @return the created subject
+     *          the type of items observed and emitted by this type of processor
+     * @return the created processor
      */
     /* test */ static <T> ReplayProcessor<T> createUnbounded() {
         return new ReplayProcessor<T>(new SizeBoundReplayBuffer<T>(Integer.MAX_VALUE));
@@ -165,31 +248,32 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
      * converted to milliseconds. For example, an item arrives at T=0 and the max age is set to 5; at T&gt;=5
      * this first item is then evicted by any subsequent item or termination event, leaving the buffer empty.
      * <p>
-     * Once the subject is terminated, observers subscribing to it will receive items that remained in the
+     * Once the processor is terminated, {@code Subscriber}s subscribing to it will receive items that remained in the
      * buffer after the terminal event, regardless of their age.
      * <p>
-     * If an observer subscribes while the {@code ReplayProcessor} is active, it will observe only those items
+     * If a {@code Subscriber} subscribes while the {@code ReplayProcessor} is active, it will observe only those items
      * from within the buffer that have an age less than the specified time, and each item observed thereafter,
-     * even if the buffer evicts items due to the time constraint in the mean time. In other words, once an
-     * observer subscribes, it observes items without gaps in the sequence except for any outdated items at the
+     * even if the buffer evicts items due to the time constraint in the mean time. In other words, once a
+     * {@code Subscriber} subscribes, it observes items without gaps in the sequence except for any outdated items at the
      * beginning of the sequence.
      * <p>
      * Note that terminal notifications ({@code onError} and {@code onComplete}) trigger eviction as well. For
      * example, with a max age of 5, the first item is observed at T=0, then an {@code onComplete} notification
-     * arrives at T=10. If an observer subscribes at T=11, it will find an empty {@code ReplayProcessor} with just
+     * arrives at T=10. If a {@code Subscriber} subscribes at T=11, it will find an empty {@code ReplayProcessor} with just
      * an {@code onComplete} notification.
      *
      * @param <T>
-     *          the type of items observed and emitted by the Subject
+     *          the type of items observed and emitted by this type of processor
      * @param maxAge
      *          the maximum age of the contained items
      * @param unit
      *          the time unit of {@code time}
      * @param scheduler
      *          the {@link Scheduler} that provides the current time
-     * @return the created subject
+     * @return the created processor
      */
     @CheckReturnValue
+    @NonNull
     public static <T> ReplayProcessor<T> createWithTime(long maxAge, TimeUnit unit, Scheduler scheduler) {
         return new ReplayProcessor<T>(new SizeAndTimeBoundReplayBuffer<T>(Integer.MAX_VALUE, maxAge, unit, scheduler));
     }
@@ -202,22 +286,22 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
      * items from the start of the buffer if their age becomes less-than or equal to the supplied age in
      * milliseconds or the buffer reaches its {@code size} limit.
      * <p>
-     * When observers subscribe to a terminated {@code ReplayProcessor}, they observe the items that remained in
+     * When {@code Subscriber}s subscribe to a terminated {@code ReplayProcessor}, they observe the items that remained in
      * the buffer after the terminal notification, regardless of their age, but at most {@code size} items.
      * <p>
-     * If an observer subscribes while the {@code ReplayProcessor} is active, it will observe only those items
+     * If a {@code Subscriber} subscribes while the {@code ReplayProcessor} is active, it will observe only those items
      * from within the buffer that have age less than the specified time and each subsequent item, even if the
-     * buffer evicts items due to the time constraint in the mean time. In other words, once an observer
+     * buffer evicts items due to the time constraint in the mean time. In other words, once a {@code Subscriber}
      * subscribes, it observes items without gaps in the sequence except for the outdated items at the beginning
      * of the sequence.
      * <p>
      * Note that terminal notifications ({@code onError} and {@code onComplete}) trigger eviction as well. For
      * example, with a max age of 5, the first item is observed at T=0, then an {@code onComplete} notification
-     * arrives at T=10. If an observer subscribes at T=11, it will find an empty {@code ReplayProcessor} with just
+     * arrives at T=10. If a {@code Subscriber} subscribes at T=11, it will find an empty {@code ReplayProcessor} with just
      * an {@code onComplete} notification.
      *
      * @param <T>
-     *          the type of items observed and emitted by the Subject
+     *          the type of items observed and emitted by this type of processor
      * @param maxAge
      *          the maximum age of the contained items
      * @param unit
@@ -226,9 +310,10 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
      *          the maximum number of buffered items
      * @param scheduler
      *          the {@link Scheduler} that provides the current time
-     * @return the created subject
+     * @return the created processor
      */
     @CheckReturnValue
+    @NonNull
     public static <T> ReplayProcessor<T> createWithTimeAndSize(long maxAge, TimeUnit unit, Scheduler scheduler, int maxSize) {
         return new ReplayProcessor<T>(new SizeAndTimeBoundReplayBuffer<T>(maxSize, maxAge, unit, scheduler));
     }
@@ -268,10 +353,8 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
 
     @Override
     public void onNext(T t) {
-        if (t == null) {
-            onError(new NullPointerException("onNext called with null. Null values are generally not allowed in 2.x operators and sources."));
-            return;
-        }
+        ObjectHelper.requireNonNull(t, "onNext called with null. Null values are generally not allowed in 2.x operators and sources.");
+
         if (done) {
             return;
         }
@@ -287,9 +370,8 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
     @SuppressWarnings("unchecked")
     @Override
     public void onError(Throwable t) {
-        if (t == null) {
-            t = new NullPointerException("onError called with null. Null values are generally not allowed in 2.x operators and sources.");
-        }
+        ObjectHelper.requireNonNull(t, "onError called with null. Null values are generally not allowed in 2.x operators and sources.");
+
         if (done) {
             RxJavaPlugins.onError(t);
             return;
@@ -331,6 +413,7 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
     }
 
     @Override
+    @Nullable
     public Throwable getThrowable() {
         ReplayBuffer<T> b = buffer;
         if (b.isDone()) {
@@ -340,18 +423,36 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
     }
 
     /**
-     * Returns a single value the Subject currently has or null if no such value exists.
+     * Makes sure the item cached by the head node in a bounded
+     * ReplayProcessor is released (as it is never part of a replay).
+     * <p>
+     * By default, live bounded buffers will remember one item before
+     * the currently receivable one to ensure subscribers can always
+     * receive a continuous sequence of items. A terminated ReplayProcessor
+     * automatically releases this inaccessible item.
+     * <p>
+     * The method must be called sequentially, similar to the standard
+     * {@code onXXX} methods.
+     * <p>History: 2.1.11 - experimental
+     * @since 2.2
+     */
+    public void cleanupBuffer() {
+        buffer.trimHead();
+    }
+
+    /**
+     * Returns the latest value this processor has or null if no such value exists.
      * <p>The method is thread-safe.
-     * @return a single value the Subject currently has or null if no such value exists
+     * @return the latest value this processor currently has or null if no such value exists
      */
     public T getValue() {
         return buffer.getValue();
     }
 
     /**
-     * Returns an Object array containing snapshot all values of the Subject.
+     * Returns an Object array containing snapshot all values of this processor.
      * <p>The method is thread-safe.
-     * @return the array containing the snapshot of all values of the Subject
+     * @return the array containing the snapshot of all values of this processor
      */
     public Object[] getValues() {
         @SuppressWarnings("unchecked")
@@ -365,7 +466,7 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
     }
 
     /**
-     * Returns a typed array containing a snapshot of all values of the Subject.
+     * Returns a typed array containing a snapshot of all values of this processor.
      * <p>The method follows the conventions of Collection.toArray by setting the array element
      * after the last value to null (if the capacity permits).
      * <p>The method is thread-safe.
@@ -389,9 +490,9 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
     }
 
     /**
-     * Returns true if the subject has any value.
+     * Returns true if this processor has any value.
      * <p>The method is thread-safe.
-     * @return true if the subject has any value
+     * @return true if the processor has any value
      */
     public boolean hasValue() {
         return buffer.size() != 0; // NOPMD
@@ -469,6 +570,7 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
 
         int size();
 
+        @Nullable
         T getValue();
 
         T[] getValues(T[] array);
@@ -476,12 +578,18 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
         boolean isDone();
 
         Throwable getError();
+
+        /**
+         * Make sure an old inaccessible head value is released
+         * in a bounded buffer.
+         */
+        void trimHead();
     }
 
     static final class ReplaySubscription<T> extends AtomicInteger implements Subscription {
 
         private static final long serialVersionUID = 466549804534799122L;
-        final Subscriber<? super T> actual;
+        final Subscriber<? super T> downstream;
         final ReplayProcessor<T> state;
 
         Object index;
@@ -493,10 +601,11 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
         long emitted;
 
         ReplaySubscription(Subscriber<? super T> actual, ReplayProcessor<T> state) {
-            this.actual = actual;
+            this.downstream = actual;
             this.state = state;
             this.requested = new AtomicLong();
         }
+
         @Override
         public void request(long n) {
             if (SubscriptionHelper.validate(n)) {
@@ -546,6 +655,12 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
         }
 
         @Override
+        public void trimHead() {
+            // not applicable for an unbounded buffer
+        }
+
+        @Override
+        @Nullable
         public T getValue() {
             int s = size;
             if (s == 0) {
@@ -587,7 +702,7 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
 
             int missed = 1;
             final List<T> b = buffer;
-            final Subscriber<? super T> a = rs.actual;
+            final Subscriber<? super T> a = rs.downstream;
 
             Integer indexObject = (Integer)rs.index;
             int index;
@@ -748,12 +863,23 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
         @Override
         public void error(Throwable ex) {
             error = ex;
+            trimHead();
             done = true;
         }
 
         @Override
         public void complete() {
+            trimHead();
             done = true;
+        }
+
+        @Override
+        public void trimHead() {
+            if (head.value != null) {
+                Node<T> n = new Node<T>(null);
+                n.lazySet(head.get());
+                head = n;
+            }
         }
 
         @Override
@@ -815,7 +941,7 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
             }
 
             int missed = 1;
-            final Subscriber<? super T> a = rs.actual;
+            final Subscriber<? super T> a = rs.downstream;
 
             Node<T> index = (Node<T>)rs.index;
             if (index == null) {
@@ -923,7 +1049,6 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
         Throwable error;
         volatile boolean done;
 
-
         SizeAndTimeBoundReplayBuffer(int maxSize, long maxAge, TimeUnit unit, Scheduler scheduler) {
             this.maxSize = ObjectHelper.verifyPositive(maxSize, "maxSize");
             this.maxAge = ObjectHelper.verifyPositive(maxAge, "maxAge");
@@ -969,16 +1094,35 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
             for (;;) {
                 TimedNode<T> next = h.get();
                 if (next == null) {
-                    head = h;
+                    if (h.value != null) {
+                        head = new TimedNode<T>(null, 0L);
+                    } else {
+                        head = h;
+                    }
                     break;
                 }
 
                 if (next.time > limit) {
-                    head = h;
+                    if (h.value != null) {
+                        TimedNode<T> n = new TimedNode<T>(null, 0L);
+                        n.lazySet(h.get());
+                        head = n;
+                    } else {
+                        head = h;
+                    }
                     break;
                 }
 
                 h = next;
+            }
+        }
+
+        @Override
+        public void trimHead() {
+            if (head.value != null) {
+                TimedNode<T> n = new TimedNode<T>(null, 0L);
+                n.lazySet(head.get());
+                head = n;
             }
         }
 
@@ -1008,6 +1152,7 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
         }
 
         @Override
+        @Nullable
         public T getValue() {
             TimedNode<T> h = head;
 
@@ -1081,7 +1226,7 @@ public final class ReplayProcessor<T> extends FlowableProcessor<T> {
             }
 
             int missed = 1;
-            final Subscriber<? super T> a = rs.actual;
+            final Subscriber<? super T> a = rs.downstream;
 
             TimedNode<T> index = (TimedNode<T>)rs.index;
             if (index == null) {
