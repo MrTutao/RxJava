@@ -14,7 +14,6 @@
 package io.reactivex.internal.operators.flowable;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
@@ -2771,6 +2770,7 @@ public class FlowableBufferTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void bufferExactFailingSupplier() {
         Flowable.empty()
                 .buffer(1, TimeUnit.SECONDS, Schedulers.computation(), 10, new Callable<List<Object>>() {

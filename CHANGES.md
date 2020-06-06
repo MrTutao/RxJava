@@ -2,6 +2,100 @@
 
 The changelog of version 1.x can be found at https://github.com/ReactiveX/RxJava/blob/1.x/CHANGES.md
 
+### Version 2.2.19 - March 14, 2020 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.19%7C))
+[JavaDocs](http://reactivex.io/RxJava/2.x/javadoc/2.2.19)
+
+:warning: The 2.x version line is now in **maintenance mode** and will be supported only through bugfixes until **February 28, 2021**. No new features, behavior changes or documentation adjustments will be accepted or applied to 2.x. It is recommended to migrate to [3.x](https://github.com/ReactiveX/RxJava/tree/3.x) within this time period.
+
+#### Bugfixes
+
+  - [Commit 7980c85b](https://github.com/ReactiveX/RxJava/commit/7980c85b18dd46ec2cd2cf49477363f1268d3a98): Fix `switchMap` not canceling properly during `onNext`-`cancel` races.
+
+
+### Version 2.2.18 - February 21, 2020 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.18%7C))
+
+:warning: The 2.x version line is now in **maintenance mode** and will be supported only through bugfixes until **February 28, 2021**. No new features, behavior changes or documentation adjustments will be accepted or applied to 2.x. It is recommended to migrate to [3.x](https://github.com/ReactiveX/RxJava/tree/3.x) within this time period.
+
+#### Bugfixes
+
+  - [Pull 6894](https://github.com/ReactiveX/RxJava/pull/6894): Fix `groupBy` not requesting more if a group is cancelled with buffered items.
+
+### Version 2.2.17 - January 12, 2020 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.17%7C))
+
+#### Bugfixes
+
+  - [Pull 6827](https://github.com/ReactiveX/RxJava/pull/6827): Fix `Flowable.flatMap` not canceling the inner sources on outer error.
+
+### Version 2.2.16 - December 15, 2019 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.16%7C))
+
+#### Bugfixes
+
+  - [Pull 6754](https://github.com/ReactiveX/RxJava/pull/6754): Fix `amb`, `combineLatest` and `zip` `Iterable` overloads throwing `ArrayStoreException` for `ObservableSource`s.
+
+#### Documentation changes
+
+  - [Pull 6746](https://github.com/ReactiveX/RxJava/pull/6746): Fix self-see references, some comments.
+
+### Version 2.2.15 - November 24, 2019 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.15%7C))
+
+#### Bugfixes
+
+  - [Pull 6715](https://github.com/ReactiveX/RxJava/pull/6715): Fix `MulticastProcessor` not requesting more after limit is reached.
+  - [Pull 6710](https://github.com/ReactiveX/RxJava/pull/6710): Fix concurrent `clear` in `observeOn` while output-fused.
+  - [Pull 6720](https://github.com/ReactiveX/RxJava/pull/6720): Fix `parallel()` on grouped flowable not replenishing properly.
+
+#### Documentation changes
+
+  - [Pull 6722](https://github.com/ReactiveX/RxJava/pull/6722): Update javadoc for `observeOn` to mention its eagerness.
+ 
+#### Other changes
+
+  - [Pull 6704](https://github.com/ReactiveX/RxJava/pull/6704): Add ProGuard rule to avoid `j.u.c.Flow` warnings due to RS 1.0.3.
+
+### Version 2.2.14 - November 2, 2019 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.14%7C))
+
+#### Bugfixes
+
+  - [Pull 6677](https://github.com/ReactiveX/RxJava/pull/6677): Fix concurrent `clear()` calls when fused chains are canceled.
+  - [Pull 6684](https://github.com/ReactiveX/RxJava/pull/6684): Fix `window(time)` possible interrupts while terminating.
+
+#### Documentation changes
+
+  - [Pull 6681](https://github.com/ReactiveX/RxJava/pull/6681): Backport marble diagrams for `Single` from 3.x.
+ 
+### Version 2.2.13 - October 3, 2019 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.13%7C))
+
+#### Dependencies
+
+  - [Commit cc690ff2](https://github.com/ReactiveX/RxJava/commit/cc690ff2f757873b11cd075ebc22262f76f28459): Upgrade to **Reactive Streams 1.0.3**.
+
+#### Bugfixes
+
+  - [Commit cc690ff2](https://github.com/ReactiveX/RxJava/commit/cc690ff2f757873b11cd075ebc22262f76f28459): Avoid using `System.getProperties()`.
+  - [Pull 6653](https://github.com/ReactiveX/RxJava/pull/6653): Fix `takeLast(time)` last events time window calculation.
+  - [Pull 6657](https://github.com/ReactiveX/RxJava/pull/6657): Fix size+time bound `window` not creating windows properly.
+
+### Version 2.2.12 - August 25, 2019 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.12%7C))
+
+#### Bugfixes
+
+  - [Pull 6618](https://github.com/ReactiveX/RxJava/pull/6618): Fix `switchMap` incorrect sync-fusion & error management.
+  - [Pull 6627](https://github.com/ReactiveX/RxJava/pull/6627): Fix `blockingIterable` hang when force-disposed.
+  - [Pull 6629](https://github.com/ReactiveX/RxJava/pull/6629): Fix `refCount` not resetting when cross-canceled. 
+
+### Version 2.2.11 - August 2, 2019 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.11%7C))
+
+#### Bugfixes
+
+  - [Pull 6560](https://github.com/ReactiveX/RxJava/pull/6560): Fix NPE when debouncing an empty source.
+  - [Pull 6599](https://github.com/ReactiveX/RxJava/pull/6599): Fix `mergeWith` not canceling other when the main fails.
+  - [Pull 6601](https://github.com/ReactiveX/RxJava/pull/6601): `ObservableBlockingSubscribe` compares with wrong object.
+  - [Pull 6602](https://github.com/ReactiveX/RxJava/pull/): Fix truncation bugs in `replay()` and `ReplaySubject`/`Processor`.
+
+#### Documentation changes
+
+  - [Pull 6565](https://github.com/ReactiveX/RxJava/pull/6565): Fix JavaDocs of `Single.doOnTerminate` refer to `onComplete` notification.
+
 ### Version 2.2.10 - June 21, 2019 ([Maven](http://search.maven.org/#artifactdetails%7Cio.reactivex.rxjava2%7Crxjava%7C2.2.10%7C))
 
 #### Bugfixes

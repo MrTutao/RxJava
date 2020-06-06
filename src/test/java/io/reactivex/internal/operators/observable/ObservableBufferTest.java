@@ -14,7 +14,6 @@
 package io.reactivex.internal.operators.observable;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
@@ -2138,6 +2137,7 @@ public class ObservableBufferTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void bufferExactFailingSupplier() {
         Observable.empty()
                 .buffer(1, TimeUnit.SECONDS, Schedulers.computation(), 10, new Callable<List<Object>>() {

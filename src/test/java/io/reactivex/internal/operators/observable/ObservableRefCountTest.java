@@ -14,7 +14,6 @@
 package io.reactivex.internal.operators.observable;
 
 import static org.junit.Assert.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import java.io.IOException;
@@ -652,7 +651,7 @@ public class ObservableRefCountTest {
     @Test
     public void replayNoLeak() throws Exception {
         System.gc();
-        Thread.sleep(100);
+        Thread.sleep(250);
 
         long start = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
 
@@ -668,7 +667,7 @@ public class ObservableRefCountTest {
         source.subscribe();
 
         System.gc();
-        Thread.sleep(100);
+        Thread.sleep(250);
 
         long after = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
 
@@ -679,7 +678,7 @@ public class ObservableRefCountTest {
     @Test
     public void replayNoLeak2() throws Exception {
         System.gc();
-        Thread.sleep(100);
+        Thread.sleep(250);
 
         long start = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
 
@@ -702,7 +701,7 @@ public class ObservableRefCountTest {
         d2 = null;
 
         System.gc();
-        Thread.sleep(100);
+        Thread.sleep(250);
 
         long after = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
 
@@ -723,7 +722,7 @@ public class ObservableRefCountTest {
     @Test
     public void publishNoLeak() throws Exception {
         System.gc();
-        Thread.sleep(100);
+        Thread.sleep(250);
 
         long start = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
 
@@ -739,7 +738,7 @@ public class ObservableRefCountTest {
         source.subscribe(Functions.emptyConsumer(), Functions.emptyConsumer());
 
         System.gc();
-        Thread.sleep(100);
+        Thread.sleep(250);
 
         long after = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
 
@@ -750,7 +749,7 @@ public class ObservableRefCountTest {
     @Test
     public void publishNoLeak2() throws Exception {
         System.gc();
-        Thread.sleep(100);
+        Thread.sleep(250);
 
         long start = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
 
@@ -773,7 +772,7 @@ public class ObservableRefCountTest {
         d2 = null;
 
         System.gc();
-        Thread.sleep(100);
+        Thread.sleep(250);
 
         long after = ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed();
 
@@ -1380,5 +1379,24 @@ public class ObservableRefCountTest {
         subject.onNext(2);
 
         observable.take(1).test().assertResult(2);
+    }
+
+    @Test
+    public void upstreamTerminationTriggersAnotherCancel() throws Exception {
+        ReplaySubject<Integer> rs = ReplaySubject.create();
+        rs.onNext(1);
+        rs.onComplete();
+
+        Observable<Integer> shared = rs.share();
+
+        shared
+        .buffer(shared.debounce(5, TimeUnit.SECONDS))
+        .test()
+        .assertValueCount(2);
+
+        shared
+        .buffer(shared.debounce(5, TimeUnit.SECONDS))
+        .test()
+        .assertValueCount(2);
     }
 }
